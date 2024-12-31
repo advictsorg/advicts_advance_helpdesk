@@ -121,26 +121,27 @@ class ShHelpdeskTicketButtonsAndConfig(models.Model):
             for line in self.stage_id.sh_next_stage_ids:
                 if self.ticket_type == line.ticket_type:
                     self.stage_id = line.sh_next_stage.id
+                    break
         # Check if there is a next stage defined
         # if self.stage_id.sh_next_stage:
             # Update the current stage to the next stage
             # self.stage_id = self.stage_id.sh_next_stage.id
 
             # Check if there are mail templates defined for the current stage
-            if self.stage_id.mail_template_ids:
-                # Loop through the mail templates and send emails
-                for template in self.stage_id.mail_template_ids:
-                    vals = {
-                    'model': 'sh.helpdesk.ticket',
-                    'res_ids': self.ids,
-                    'template_id': template.id,
-                    'composition_mode': 'comment',
-                    'subtype_id': self.env['ir.model.data']._xmlid_to_res_id('mail.mt_comment'),
-                    }
-                    new_msg = self.env['mail.compose.message'].create(vals)
-                    new_msg._compute_subject()
-                    new_msg._compute_body()
-                    new_msg.action_send_mail()
+            # if self.stage_id.mail_template_ids:
+            #     # Loop through the mail templates and send emails
+            #     for template in self.stage_id.mail_template_ids:
+            #         vals = {
+            #         'model': 'sh.helpdesk.ticket',
+            #         'res_ids': self.ids,
+            #         'template_id': template.id,
+            #         'composition_mode': 'comment',
+            #         'subtype_id': self.env['ir.model.data']._xmlid_to_res_id('mail.mt_comment'),
+            #         }
+            #         new_msg = self.env['mail.compose.message'].create(vals)
+            #         new_msg._compute_subject()
+            #         new_msg._compute_body()
+            #         new_msg.action_send_mail()
                     # Send the email (force_send=True means it will be sent immediately)
                     # template.sudo().send_mail(self.id, force_send=True)
 
