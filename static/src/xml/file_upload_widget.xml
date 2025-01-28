@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates>
+    <t t-name="advicts_advance_helpdesk.FileUploadWidget">
+        <div class="o_file_upload_widget">
+            <div
+                id="drop-zone"
+                class="border rounded p-3 text-center"
+                t-on-drop="onDrop"
+                t-on-dragover="onDragOver"
+            >
+                Drag and drop files here or click to upload
+            </div>
+            <input
+                type="file"
+                id="file-input"
+                multiple
+                t-on-change="onFileInputChange"
+                style="display: none"
+            />
+            <div id="file-preview" class="mt-3">
+                <t t-foreach="state.selectedFiles" t-as="file" t-key="file.name">
+                    <div class="file-item">
+                        <span class="file-icon">📄</span>
+                        <span class="file-name" t-esc="file.name"></span>
+                        <span
+                            class="remove-file text-danger"
+                            t-on-click="removeFile(file.name)"
+                            >&times;</span
+                        >
+                    </div>
+                </t>
+            </div>
+        </div>
+    </t>
+</templates>

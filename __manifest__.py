@@ -9,8 +9,9 @@
     "summary": "Customizable Helpdesk to Make it Professional",
     "description": """Customizable Helpdesk to Make it Professional """,
     "version": "0.0.1",
-    "depends": ["mail", "portal", "product", "resource", "sale_management", "purchase", "account", "hr_timesheet",
-                "crm", "project", ],
+    "depends": ["mail", "portal", "product", 'website', "resource", "sale_management", "purchase", "account",
+                "hr_timesheet",
+                "crm", "project", 'web_editor'],
     "data": [
         "security/sh_helpdesk_security.xml",
         "security/ir.model.access.csv",
@@ -43,6 +44,7 @@
         "views/sh_ticket_feedback_template.xml",
         # "views/sh_ticket_dashboard_templates.xml",
         "views/res_users.xml",
+        "views/res_partner.xml",
         "views/sh_helpdesk_merge_ticket_action.xml",
         "views/sh_helpdesk_ticket_multi_action_view.xml",
         "views/sh_helpdesk_ticket_update_wizard_view.xml",
@@ -105,8 +107,12 @@
         ],
         'web.assets_frontend': [
             'advicts_advance_helpdesk/static/src/js/portal.js',
+            # 'advicts_advance_helpdesk/static/src/js/description.js',
             # 'advicts_advance_helpdesk/static/src/css/bootstrap-multiselect.min.css',
             # 'advicts_advance_helpdesk/static/src/js/bootstrap-multiselect.min.js',
+            'advicts_advance_helpdesk/static/src/css/feedback.scss',
+            'advicts_advance_helpdesk/static/src/js/file_upload_widget.js',
+            # 'advicts_advance_helpdesk/static/src/xml/file_upload_widget.xml',
             'advicts_advance_helpdesk/static/src/css/feedback.scss'
         ],
     },

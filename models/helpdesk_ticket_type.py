@@ -9,20 +9,21 @@ class HelpdeskTicketType(models.Model):
     _description = 'Helpdesk Ticket Type'
     _rec_name = 'name'
 
-    name = fields.Char('Name', required=True,translate=True)
+    name = fields.Char('Name', required=True, translate=True)
     sla_count = fields.Integer(compute='_compute_helpdesk_sla')
-    
+    is_internal_ticket = fields.Boolean('Is Internal Ticket')
+
     def _compute_helpdesk_sla(self):
         for record in self:
             record.sla_count = 0
             slas = self.env['sh.helpdesk.ticket'].sudo().search(
-            [('ticket_type', '=', self.id),('sh_sla_status_ids','!=',False)])
+                [('ticket_type', '=', self.id), ('sh_sla_status_ids', '!=', False)])
             record.sla_count = len(slas.ids)
-    
+
     def action_view_sla(self):
         self.ensure_one()
         slas = self.env['sh.helpdesk.ticket'].sudo().search(
-            [('ticket_type', '=', self.id),('sh_sla_status_ids','!=',False)])
+            [('ticket_type', '=', self.id), ('sh_sla_status_ids', '!=', False)])
         action = self.env["ir.actions.actions"]._for_xml_id(
             "advicts_advance_helpdesk.sh_helpdesk_ticket_action")
         if len(slas) > 1:
@@ -32,8 +33,8 @@ class HelpdeskTicketType(models.Model):
                 (self.env.ref('advicts_advance_helpdesk.sh_helpdesk_ticket_form_view').id, 'form')]
             if 'views' in action:
                 action['views'] = form_view + \
-                    [(state, view)
-                     for state, view in action['views'] if view != 'form']
+                                  [(state, view)
+                                   for state, view in action['views'] if view != 'form']
             else:
                 action['views'] = form_view
             action['res_id'] = slas.id

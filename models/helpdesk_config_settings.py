@@ -4,6 +4,11 @@
 from odoo import models, fields, api
 
 
+class Website(models.Model):
+    _inherit = "website"
+
+    appear_helpdesk = fields.Boolean()
+    
 class ResCompany(models.Model):
     _inherit = 'res.company'
 
@@ -77,7 +82,10 @@ class HelpdeskSettings(models.TransientModel):
         related='company_id.access_for_everyone',
         readonly=False
     )
-
+    appear_helpdesk = fields.Boolean(
+        related="website_id.appear_helpdesk",
+        string="Appear Helpdesk", readonly=False
+    )
     enable_manual_add_timesheet = fields.Boolean(string="Manual Add Timesheet",related='company_id.enable_manual_add_timesheet',readonly=False)
 
     company_id = fields.Many2one('res.company',

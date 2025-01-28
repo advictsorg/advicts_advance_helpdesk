@@ -23,12 +23,13 @@
             <t t-set="portal_service_category_enable" t-value="True"/>
         </xpath>
         <div id="portal_service_category" position="inside">
-            <t t-call="portal.portal_docs_entry">
+            <t t-set="appear_helpdesk" t-value="request.website.appear_helpdesk"/>
+                <t t-if="appear_helpdesk" t-call="portal.portal_docs_entry">
                 <t t-set="icon" t-value="'/advicts_advance_helpdesk/static/src/img/helpdesk ticket.svg'"/>
                 <t t-set="title">Helpdesk Tickets</t>
                 <t t-set="url" t-value="'/my/sh_tickets'"/>
                 <t t-set="text">Follow all your helpdesk tickets</t>
-                <t t-set="placeholder_count" t-value="'sh_ticket_count'"/>
+<!--                <t t-set="placeholder_count" t-value="'sh_ticket_count'"/>-->
             </t>
         </div>
     </template>
@@ -58,7 +59,7 @@
                             </button>
                         </div>
                         <div class="modal-body">
-                            <form action="/portal-create-ticket" id="form_id" method="POST" class="form-horizontal mt32"
+                            <form action="/portal-create-ticket" id="form_id" method="POST" class="form-horizontal o_wprofile_editor_form mt32"
                                   enctype="multipart/form-data">
                                 <input type="hidden" name="sh_file_size" id="sh_file_size"
                                        t-att-value="request.env.company.sh_file_size"/>
@@ -221,7 +222,7 @@
                                             <label class="control-label mb-1" for="portal_description">Description
                                             </label>
                                             <textarea id="description" name="portal_description"
-                                                      class="form-control form-field o_website_form_required_custom"
+                                                      t-attf-class="form-control o_wysiwyg_loader form-field o_website_form_required_custom" t-att-data-karma="karma_editor"
                                                       placeholder="Description"/>
                                         </div>
                                     </div>
@@ -259,17 +260,19 @@
                                     <div class="col-xxl-6 col-xl-6 col-lg-6 col-md-6 com-sm-12 col-xs-12"/>
 
                                     <div class="col-12 mt-3">
-                                        <div name="portal_file_container"
-                                             t-attf-class="form-group mb-3 #{error and 'portal_file' in error and 'has-error' or ''}">
-                                            <label class="control-label mb-1 d-block" for="portal_file">Attachments
+                                    <div name="portal_file_container" t-attf-class="form-group mb-3 #{error and 'portal_file' in error and 'has-error' or ''}">
+                                        <label class="control-label mb-1 d-block" for="portal_file">Attachments
                                             </label>
-                                            <label class="custom-file">
-                                                <input name="portal_file" id="portal_file" type="file"
-                                                       multiple="multiple"/>
-                                                <span class="custom-file-control"/>
-                                            </label>
-                                        </div>
+                                        <label class="custom-file">
+                                            <div class="form-group mb-3">
+                                                <div id="drop-zone" class="border rounded p-3 text-center">
+                                                    Drag and drop files here or click to upload
+                                                </div>
+                                                <input name="portal_file" id="portal_file" type="file" multiple="multiple" style="display: none;"/>
+                                                <div id="file-preview" class="mt-3"/></div>
+                                        </label>
                                     </div>
+                                </div>
                                 </div>
                                 <div class="row" style="text-align: right;">
                                     <div class="col-12">

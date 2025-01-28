@@ -6,21 +6,25 @@ from odoo import models, fields, api, _
 import random
 from odoo.exceptions import UserError
 from odoo.tools import email_re
+
 _logger = logging.getLogger(__name__)
+
 
 class HelpdeskTicket(models.Model):
     _name = 'sh.helpdesk.ticket'
-    _inherit = ['portal.mixin','mail.activity.mixin']
+    _inherit = ['portal.mixin', 'mail.activity.mixin']
     _description = "Helpdesk Ticket"
     _order = 'id DESC'
     _rec_name = 'name'
     _primary_email = 'email'
 
-    enable_manual_add_timesheet = fields.Boolean(related='company_id.enable_manual_add_timesheet',string="Manual Add Timesheet")
-    
+    enable_manual_add_timesheet = fields.Boolean(related='company_id.enable_manual_add_timesheet',
+                                                 string="Manual Add Timesheet")
+
     def unlink(self):
         for record in self:
-            find_analysis_record = self.env['sh.helpdesk.sla.analysis'].sudo().search([('sh_helpdesk_ticket_id','=',record.id)])
+            find_analysis_record = self.env['sh.helpdesk.sla.analysis'].sudo().search(
+                [('sh_helpdesk_ticket_id', '=', record.id)])
             find_analysis_record.unlink()
         super(HelpdeskTicket, self).unlink()
 
@@ -38,6 +42,12 @@ class HelpdeskTicket(models.Model):
     @api.model
     def default_due_date(self):
         return fields.Datetime.now()
+
+    active_user_id = fields.Many2one('res.users', compute='_compute_active_user_id')
+
+    def _compute_active_user_id(self):
+        for rec in self:
+            rec.active_user_id = self.env.user.id
 
     name = fields.Char("Name", tracking=True)
     company_id = fields.Many2one('res.company',
@@ -83,7 +93,7 @@ class HelpdeskTicket(models.Model):
                                   tracking=True)
     sub_category_id = fields.Many2one('helpdesk.subcategory',
                                       string="Sub Category")
-    sub_category_id_domain = fields.Char("Sub category domain",compute="_compute_sub_category_id_domain", store=True)
+    sub_category_id_domain = fields.Char("Sub category domain", compute="_compute_sub_category_id_domain", store=True)
     partner_id = fields.Many2one('res.partner',
                                  string='Partner',
                                  tracking=True,
@@ -122,7 +132,7 @@ class HelpdeskTicket(models.Model):
                                  store=True)
     ticket_allocated = fields.Boolean("Allocated")
     sh_user_ids = fields.Many2many('res.users', string="Assign Multi Users")
-    sh_user_ids_domain = fields.Char("users domain",compute="_compute_sh_user_ids_domain", store=True)
+    sh_user_ids_domain = fields.Char("users domain", compute="_compute_sh_user_ids_domain", store=True)
     sh_display_multi_user = fields.Boolean(
         compute="_compute_sh_display_multi_user")
     sh_display_product = fields.Boolean(compute='_compute_sh_display_product')
@@ -130,7 +140,7 @@ class HelpdeskTicket(models.Model):
                                   ('sla_passed', 'Passed'),
                                   ('sh_partially_passed', 'Partially Passed')],
                                  string="Status")
-    sh_status_boolean = fields.Boolean(compute="_compute_state_boolean")  
+    sh_status_boolean = fields.Boolean(compute="_compute_state_boolean")
     sh_days_to_reach = fields.Float(string='SLA reached duration')
     sh_days_to_late = fields.Float(string='SLA late duration')
     sh_due_date = fields.Datetime('Reminder Due Date',
@@ -144,23 +154,40 @@ class HelpdeskTicket(models.Model):
     email_subject = fields.Char('Subject')
 
     sh_merge_ticket_ids = fields.Many2many(
-        'sh.helpdesk.ticket', relation='model_merge_sh_helpdesk_ticket', column1="helpdesk", column2="ticket", string='Merge Tickets')
+        'sh.helpdesk.ticket', relation='model_merge_sh_helpdesk_ticket', column1="helpdesk", column2="ticket",
+        string='Merge Tickets')
 
     sh_merge_ticket_count = fields.Integer(
         compute="_compute_count_merge_ticket")
-    
-    
+
+    active_user = fields.Boolean(compute='_compute_active_user')
+
+    def _compute_active_user(self):
+        for record in self:
+            if record.user_id.id == self.env.user.id:
+                record.active_user = True
+            else:
+                record.active_user = False
+
+    @api.onchange('ticket_type')
+    def _onchange_ticket_type(self):
+        for rec in self:
+            if rec.ticket_type.is_internal_ticket:
+                partner = self.env['res.partner'].search([('is_internal_partner', '=', True)], limit=1)
+                if partner:
+                    rec.partner_id = partner.id
+
     @api.model
     def _read_group_stage_ids(self, states, domain, order):
         # Returning all states
         return self.env['helpdesk.stages'].search([])
-    
+
     def _compute_count_merge_ticket(self):
         for record in self:
             record.sh_merge_ticket_count = len(
                 record.sh_merge_ticket_ids) if record.sh_merge_ticket_ids else 0
 
-    #====THIS METHOD CALLED IN Create METHOD=====#
+    # ====THIS METHOD CALLED IN Create METHOD=====#
     def _create_partner(self, vals):
         # this code for create new partner 
         if not vals.get('partner_id') and vals.get('email', False):
@@ -180,10 +207,10 @@ class HelpdeskTicket(models.Model):
         else:
             # Update Person name and email
             if vals.get('email', False):
-                create_from_email =self._context.get('fetchmail_cron_running',False)
+                create_from_email = self._context.get('fetchmail_cron_running', False)
                 emails = email_re.findall(vals.get('email') or '')
                 email = emails and emails[0] or ''
-                name=''
+                name = ''
                 if create_from_email:
                     name = str(vals.get('email').split('"')[1])
                 else:
@@ -195,8 +222,10 @@ class HelpdeskTicket(models.Model):
 
     def _allocate_team(self, vals):
         # this code when ticket create by support user default value add
-        if self.env.user.has_group('advicts_advance_helpdesk.helpdesk_group_user') and not self.env.user.has_group('advicts_advance_helpdesk.helpdesk_group_team_leader'):
-            find_team = self.env['sh.helpdesk.team'].search(['|', ('team_members', 'in', self.env.user.id), ('team_head', '=', self.env.user.id)], limit=1)
+        if self.env.user.has_group('advicts_advance_helpdesk.helpdesk_group_user') and not self.env.user.has_group(
+                'advicts_advance_helpdesk.helpdesk_group_team_leader'):
+            find_team = self.env['sh.helpdesk.team'].search(
+                ['|', ('team_members', 'in', self.env.user.id), ('team_head', '=', self.env.user.id)], limit=1)
             if find_team:
                 vals.update({
                     'team_id': find_team.id,
@@ -221,9 +250,9 @@ class HelpdeskTicket(models.Model):
             self = self.with_company(vals['company_id'])
         if company_id.new_stage_id:
             vals['stage_id'] = company_id.new_stage_id.id
-    
+
     def _send_mail(self, res):
-        #send mail when create ticket
+        # send mail when create ticket
         if res.ticket_from_website and res.company_id.new_stage_id.mail_template_ids and res.partner_id:
             for template in res.company_id.new_stage_id.mail_template_ids:
                 template.sudo().send_mail(res.id, force_send=True)
@@ -234,7 +263,7 @@ class HelpdeskTicket(models.Model):
     def _allocate_mail(self, res):
         allocation_template = res.company_id.allocation_mail_template_id
         email_formatted = []
-        if res.team_id and res.team_head and res.user_id and res.sh_user_ids: 
+        if res.team_id and res.team_head and res.user_id and res.sh_user_ids:
             if res.team_head.partner_id.email_formatted not in email_formatted:
                 email_formatted.append(res.team_head.partner_id.email_formatted)
             if res.user_id.partner_id.email and res.user_id.partner_id.email_formatted not in email_formatted:
@@ -249,7 +278,7 @@ class HelpdeskTicket(models.Model):
                 'email_to': email_formatted_str
             }
             if allocation_template:
-                allocation_template.sudo().send_mail(res.id,force_send=True,email_values=email_values)
+                allocation_template.sudo().send_mail(res.id, force_send=True, email_values=email_values)
                 res.ticket_allocated = True
 
         elif res.team_id and res.team_head and res.user_id and not res.sh_user_ids:
@@ -263,7 +292,7 @@ class HelpdeskTicket(models.Model):
                 'email_to': email_formatted_str
             }
             if allocation_template:
-                allocation_template.sudo().send_mail(res.id,force_send=True,email_values=email_values)
+                allocation_template.sudo().send_mail(res.id, force_send=True, email_values=email_values)
                 res.ticket_allocated = True
 
         elif res.team_id and res.team_head and not res.user_id and res.sh_user_ids:
@@ -276,7 +305,7 @@ class HelpdeskTicket(models.Model):
                 'email_to': email_formatted_str
             }
             if allocation_template:
-                allocation_template.sudo().send_mail(res.id,force_send=True,email_values=email_values)
+                allocation_template.sudo().send_mail(res.id, force_send=True, email_values=email_values)
                 res.ticket_allocated = True
 
         elif not res.team_id and not res.team_head and res.user_id and res.sh_user_ids:
@@ -292,26 +321,26 @@ class HelpdeskTicket(models.Model):
                 'email_to': email_formatted_str
             }
             if allocation_template:
-                allocation_template.sudo().send_mail(res.id,force_send=True,email_values=email_values)
+                allocation_template.sudo().send_mail(res.id, force_send=True, email_values=email_values)
                 res.ticket_allocated = True
 
         elif not res.team_id and not res.team_head and res.user_id and not res.sh_user_ids:
             allocation_template.sudo().write({
                 'email_from':
-                str(res.company_id.partner_id.email_formatted),
+                    str(res.company_id.partner_id.email_formatted),
                 'email_to':
-                str(res.user_id.partner_id.email_formatted),
+                    str(res.user_id.partner_id.email_formatted),
                 'partner_to':
-                str(res.user_id.partner_id.id)
+                    str(res.user_id.partner_id.id)
             })
             email_values = {
-                        'email_from': str(res.company_id.partner_id.email_formatted),
-                        'email_to': str(res.user_id.partner_id.email_formatted)
-                    }
+                'email_from': str(res.company_id.partner_id.email_formatted),
+                'email_to': str(res.user_id.partner_id.email_formatted)
+            }
             if allocation_template:
-                allocation_template.sudo().send_mail(res.id,force_send=True,email_values=email_values)
+                allocation_template.sudo().send_mail(res.id, force_send=True, email_values=email_values)
                 res.ticket_allocated = True
-            
+
         elif not res.team_id and not res.team_head and not res.user_id and res.sh_user_ids:
             for user in res.sh_user_ids:
                 if user.partner_id.email and user.partner_id.email_formatted not in email_formatted:
@@ -322,32 +351,33 @@ class HelpdeskTicket(models.Model):
                 'email_to': email_formatted_str
             }
             if allocation_template:
-                allocation_template.sudo().send_mail(res.id,force_send=True,email_values=email_values)
+                allocation_template.sudo().send_mail(res.id, force_send=True, email_values=email_values)
                 res.ticket_allocated = True
 
-    def _subscribe_partner(self,res):
+    def _subscribe_partner(self, res):
         if self.env.company.sh_auto_add_customer_as_follower and res.partner_id:
-                        res.message_subscribe(partner_ids=res.partner_id.ids)
+            res.message_subscribe(partner_ids=res.partner_id.ids)
         if res.sh_user_ids:
             if res.sh_user_ids.mapped('partner_id'):
                 res.message_subscribe(partner_ids=res.sh_user_ids.mapped('partner_id').ids)
-    
-    def update_ir_attachment(self,result):
+
+    def update_ir_attachment(self, result):
         if result.attachment_ids:
             result.attachment_ids.write({
-                'res_id' : result.id,
-                'res_model' : 'sh.helpdesk.ticket'
+                'res_id': result.id,
+                'res_model': 'sh.helpdesk.ticket'
             })
 
     @api.model_create_multi
     def create(self, values):
+        # self = self.sudo()
         for value in values:
             try:
                 self._create_partner(value)
                 self._allocate_team(value)
                 self._set_defaults(value)
-                self._customize_ticket(value)                
-            except Exception as e:                                 
+                self._customize_ticket(value)
+            except Exception as e:
                 _logger.exception("Error during ticket creation: %s", e)
                 continue
 
@@ -361,8 +391,7 @@ class HelpdeskTicket(models.Model):
 
         return result
 
-
-    #====THIS METHOD CALLED IN Write METHOD=====#
+    # ====THIS METHOD CALLED IN Write METHOD=====#
     def set_stage_id(self, vals):
         if vals.get('state'):
             if vals.get('state') == 'customer_replied':
@@ -400,11 +429,12 @@ class HelpdeskTicket(models.Model):
             for rec in self:
                 for template in rec.company_id.new_stage_id.mail_template_ids:
                     template.sudo().send_mail(rec.id, force_send=True)
-    
+
     def allocate_ticket(self, vals):
         allocation_template = self.env.company.allocation_mail_template_id
         email_formatted = []
-        if vals.get('team_id') and vals.get('team_head') and vals.get('user_id') and vals.get('sh_user_ids') and not vals.get('ticket_allocated'):
+        if vals.get('team_id') and vals.get('team_head') and vals.get('user_id') and vals.get(
+                'sh_user_ids') and not vals.get('ticket_allocated'):
             team_head = self.env['res.users'].sudo().browse(vals.get('team_head'))
             user_id = self.env['res.users'].sudo().browse(vals.get('user_id'))
             if team_head.partner_id.email_formatted not in email_formatted:
@@ -428,7 +458,8 @@ class HelpdeskTicket(models.Model):
                         rec.id, force_send=True, email_values=email_values)
                     rec.ticket_allocated = True
 
-        elif vals.get('team_id') and vals.get('team_head') and vals.get('user_id') and not vals.get('sh_user_ids') and not vals.get('ticket_allocated'):
+        elif vals.get('team_id') and vals.get('team_head') and vals.get('user_id') and not vals.get(
+                'sh_user_ids') and not vals.get('ticket_allocated'):
             team_head = self.env['res.users'].sudo().browse(vals.get('team_head'))
             user_id = self.env['res.users'].sudo().browse(vals.get('user_id'))
             if team_head.partner_id.email_formatted not in email_formatted:
@@ -446,7 +477,8 @@ class HelpdeskTicket(models.Model):
                         rec.id, force_send=True, email_values=email_values)
                     rec.ticket_allocated = True
 
-        elif vals.get('team_id') and vals.get('team_head') and not vals.get('user_id') and vals.get('sh_user_ids') and not vals.get('ticket_allocated'):
+        elif vals.get('team_id') and vals.get('team_head') and not vals.get('user_id') and vals.get(
+                'sh_user_ids') and not vals.get('ticket_allocated'):
             users = vals.get('sh_user_ids')[0][2]
             user_ids = self.env['res.users'].sudo().browse(users)
             team_head = self.env['res.users'].sudo().browse(vals.get('team_head'))
@@ -464,7 +496,8 @@ class HelpdeskTicket(models.Model):
                         rec.id, force_send=True, email_values=email_values)
                     rec.ticket_allocated = True
 
-        elif not vals.get('team_id') and not vals.get('team_head') and vals.get('user_id') and vals.get('sh_user_ids') and not vals.get('ticket_allocated'):
+        elif not vals.get('team_id') and not vals.get('team_head') and vals.get('user_id') and vals.get(
+                'sh_user_ids') and not vals.get('ticket_allocated'):
             user_id = self.env['res.users'].sudo().browse(vals.get('user_id'))
             users = vals.get('sh_user_ids')[0][2]
             user_ids = self.env['res.users'].sudo().browse(users)
@@ -484,7 +517,8 @@ class HelpdeskTicket(models.Model):
                     allocation_template.sudo().send_mail(
                         rec.id, force_send=True, email_values=email_values)
                     rec.ticket_allocated = True
-        elif not vals.get('team_id') and not vals.get('team_head') and vals.get('user_id') and not vals.get('sh_user_ids') and not vals.get('ticket_allocated'):
+        elif not vals.get('team_id') and not vals.get('team_head') and vals.get('user_id') and not vals.get(
+                'sh_user_ids') and not vals.get('ticket_allocated'):
             user_id = self.env['res.users'].sudo().browse(vals.get('user_id'))
             email_values = {
                 'email_from': str(self.env.company.partner_id.email_formatted),
@@ -495,7 +529,8 @@ class HelpdeskTicket(models.Model):
                     allocation_template.sudo().send_mail(
                         rec.id, force_send=True, email_values=email_values)
                     rec.ticket_allocated = True
-        elif not vals.get('team_id') and not vals.get('team_head') and not vals.get('user_id') and vals.get('sh_user_ids') and not vals.get('ticket_allocated'):
+        elif not vals.get('team_id') and not vals.get('team_head') and not vals.get('user_id') and vals.get(
+                'sh_user_ids') and not vals.get('ticket_allocated'):
             users = vals.get('sh_user_ids')[0][2]
             user_ids = self.env['res.users'].sudo().browse(users)
             for user in user_ids:
@@ -511,8 +546,7 @@ class HelpdeskTicket(models.Model):
                     allocation_template.sudo().send_mail(
                         rec.id, force_send=True, email_values=email_values)
                     rec.ticket_allocated = True
-        
-            
+
     def write(self, vals):
         for rec in self:
             try:
@@ -538,8 +572,8 @@ class HelpdeskTicket(models.Model):
         # SLA APPLY
         # ***************************************************
         if vals.get('ticket_type') or vals.get('team_id'):
-            for each_record in self:                                    
-                    each_record.sh_apply_sla()
+            for each_record in self:
+                each_record.sh_apply_sla()
         if vals.get('stage_id'):
             for each_record in self:
                 each_record.sh_conclude_sla()
@@ -548,15 +582,13 @@ class HelpdeskTicket(models.Model):
                     if rec.sh_user_ids.mapped('partner_id'):
                         rec.message_subscribe(partner_ids=rec.sh_user_ids.mapped('partner_id').ids)
         return res
-    
+
         # ***************************************************
         # SLA APPLY
         # ***************************************************
-       
+
     @api.returns('self', lambda value: value.id)
     def copy(self, default=None):
         res = super(HelpdeskTicket, self).copy(default=default)
         res.state = 'customer_replied'
         return res
-    
- 

@@ -12,6 +12,7 @@ from . import helpdesk_subcategory
 from . import helpdesk_priority
 from . import helpdesk_config_settings
 from . import res_users
+from . import res_partner
 from . import helpdesk_ticket
 from . import helpdesk_alarm
 from . import helpdesk_ticket_dashboard

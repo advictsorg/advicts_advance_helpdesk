@@ -1,3 +1,33 @@
+.file-dropzone {
+  position: relative;
+  border: 2px dashed #ccc;
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  background-color: #f9f9f9;
+}
+
+.file-dropzone.dragging {
+  background-color: #e0e0e0;
+  border-color: #007bff;
+}
+
+.file-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px;
+  margin-top: 5px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.remove-file {
+  cursor: pointer;
+  font-weight: bold;
+  color: red;
+}
+
 .btn-success {
     border: none;
     background: #fff;
